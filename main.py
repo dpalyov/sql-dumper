@@ -2,23 +2,21 @@ import PySimpleGUI as sg
 import pandas as pd
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, URL, text, exc, Engine
+from sqlalchemy import create_engine, URL, text, exc, Engine, select, table, column, func
 import base64
-from mysql.connector.locales.eng import client_error
 from typing import Optional, Tuple, Union, Literal
 
 load_dotenv()
 exit_events = (sg.WIN_CLOSED, 'cancel', "Exit")
 
+
 # Sets up connection to the database
-
-
 def init_engine(user: str, passwd: str, db: str, host: str, driver: str) -> Optional[Engine]:
 
     if (db and host and driver) not in (None, ""):
 
-        url_object = URL.create(drivername=driver,
-                                username=user, password=passwd, host=host, database=db, query={"auth_plugin": "mysql_native_password"})
+        url_object = URL.create(username=user, password=passwd, host=host, drivername=driver,
+                                database=db)
         engine = create_engine(url_object)
         return engine
 
@@ -29,13 +27,19 @@ def get_tables(engine: Engine, window: sg.Window, db: str):
     try:
         if engine is not None:
             with engine.begin() as conn:
-                db_tables_query = "SELECT table_name FROM information_schema.tables WHERE table_schema = '" + db + "'"
-                tables = conn.execute(text(db_tables_query))
+                # db_tables_query = "SELECT table_name FROM information_schema.tables WHERE table_schema = '" + db + "'"
+
+                info_tables = table("tables", column("table_name"), column(
+                    "table_schema"), schema="information_schema")
+                db_tables_query = select(info_tables.c.table_name).select_from(info_tables).where(
+                    info_tables.c["table_schema"] == db)
+
+                tables = conn.execute(db_tables_query)
                 tables = tables.scalars().all()
                 window.Element("tables").update(values=tables)
-                window.Element("error").update("")
+                window.Element("info").update("")
     except exc.DBAPIError:
-        window.Element("error").update(
+        window.Element("info").update(
             "Error connecting to the database! Please check credentials or authenticate")
 
 
@@ -86,10 +90,6 @@ def main():
             theme, text_color=sg.OLD_TABLE_TREE_SELECTED_ROW_COLORS[1]), sg.Text("User:"), sg.Text(user, key="username", text_color=sg.OLD_TABLE_TREE_SELECTED_ROW_COLORS[1])],
         [sg.Button(key="login", visible=visible_login, image_source="assets/login.png",
                    image_size=(50, 30))],
-        [sg.Text("Enter filename")],
-        [sg.InputText(key="filename", size=50, expand_x=True)],
-        [sg.Text("Select extension"), sg.DropDown(key="extension", default_value="txt",
-                                                  values=["txt", "json"])],
         [sg.Text("Available tables are:")],
         [sg.Listbox(key="tables", values=[],
                     size=(50, 5), enable_events=True, expand_x=True)],
@@ -101,9 +101,14 @@ def main():
                    expand_x=True, enable_events=True)],
         [sg.Text("Enter SELECT SQL query here")],
         [sg.Multiline(size=(50, 5), key="textbox", expand_x=True)],
-        [sg.Text(key="error", text_color=sg.DEFAULT_BUTTON_COLOR[1])],
+        [sg.Text("Filename"),
+            sg.InputText(key="filename", default_text="myexport",
+                         size=50, expand_x=True),
+            sg.Text("Extension"),
+            sg.DropDown(key="extension", default_value="txt", values=["txt", "json"])],
+        [sg.Text(key="info", text_color=sg.DEFAULT_TEXT_COLOR)],
         [sg.Button(key="submit", image_source="assets/poop.png", tooltip="Dump!",
-                   image_size=(60, 40)), sg.Button(key="cancel", tooltip="Cancel", image_source="assets/fart.png", image_size=(60, 40))],
+                   image_size=(60, 40)), sg.Button(key="cancel", tooltip="Cancel", image_source="assets/fart.png", image_size=(60, 40))]
     ]
 
     window_icon = None
@@ -138,42 +143,49 @@ def main():
 
         selected_table = values["tables"][0] if len(
             values["tables"]) > 0 else ""
-        selected_columns = values["columns"]
+
+        base_query = None
+        extended_query = None
+        percent = 0
+
+        if selected_table:
+            filter_columns = [column(c) for c in values["columns"]]
+            base_query = select(
+                *filter_columns or "*").select_from(table(selected_table))
+
+            percent = int(values["count"])
+            absolut = int(round(row_count * (percent / 100)))
+
+            extended_query = str(base_query.limit(absolut)).replace(
+                ":param_1", str(absolut))
 
         # Event handling when table selection change
         if event == "tables" and engine is not None:
             with engine.begin() as conn:
-                table_columns_query = "SELECT COLUMN_NAME FROM information_schema.columns WHERE TABLE_NAME = '" + \
-                    selected_table + "'"
+                info_columns = table("columns", column(
+                    "column_name"), column("table_name"), schema="information_schema")
 
-                count_query = "SELECT COUNT(*) FROM " + selected_table
+                table_columns_query = select(info_columns.c.column_name).select_from(
+                    info_columns).where(info_columns.c.table_name == selected_table)
 
-                columns = conn.execute(
-                    text(table_columns_query)).scalars().all()
+                count_query = select(func.count(
+                    "*")).select_from(table(selected_table))
 
-                row_count = conn.execute(text(count_query)).scalar()
+                columns = conn.execute(table_columns_query).scalars().all()
+                row_count = conn.execute(count_query).scalar()
 
                 window.Element("columns").update(values=columns)
-
-                columns = ",".join(selected_columns) if len(
-                    selected_columns) > 0 else "*"
-                window.Element("textbox").update("SELECT %s FROM %s" %
-                                                 (columns, selected_table))
+                window.Element("textbox").update(
+                    extended_query if percent > 0 else base_query)
 
         # Event handling when column selection change
         if event == "columns":
-            columns = ",".join(selected_columns) if len(
-                selected_columns) > 0 else "*"
-            window.Element("textbox").update("SELECT %s FROM %s" %
-                                             (columns, selected_table))
+            window.Element("textbox").update(
+                extended_query if percent > 0 else base_query)
 
         # Event handling when percent selection change
-        if event == "count":
-            percent = values["count"]
-            columns = ",".join(selected_columns) if len(
-                selected_columns) > 0 else "*"
-            window.Element("textbox").update("SELECT %s FROM %s LIMIT %s" %
-                                             (columns, selected_table, str(round(row_count * (percent / 100)))))
+        if event == "count" and selected_table:
+            window.Element("textbox").update(extended_query)
 
         # Event handling when submitting
         if event == "submit":
@@ -183,11 +195,11 @@ def main():
             ext = values["extension"]
 
             if filename == "":
-                window.Element("error").update("Filename is required!")
+                window.Element("info").update("Filename is required!")
                 continue
 
             if query.upper().find("SELECT", ) < 0:
-                window.Element("error").update(
+                window.Element("info").update(
                     "Query must be a SELECT statement!")
                 continue
 
@@ -200,8 +212,11 @@ def main():
             if ext == "json":
                 df.to_json(file, orient="table", indent=2)
 
+            msg = 'Dumped %d records into file %s' % (len(df), file)
             print("Executed %s" % query)
-            print('Dumped %d records into file %s' % (len(df), file))
+            print(msg)
+
+            window.Element("info").update(msg)
 
     window.close()
 
