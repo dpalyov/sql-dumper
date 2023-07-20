@@ -10,6 +10,8 @@ from typing import Optional, Tuple, Union, Literal
 load_dotenv()
 exit_events = (sg.WIN_CLOSED, 'cancel', "Exit")
 
+# Sets up connection to the database
+
 
 def init_engine(user: str, passwd: str, db: str, host: str, driver: str) -> Optional[Engine]:
 
@@ -21,6 +23,7 @@ def init_engine(user: str, passwd: str, db: str, host: str, driver: str) -> Opti
         return engine
 
 
+# Initially gets all tables that are available on the configured database
 def get_tables(engine: Engine, window: sg.Window, db: str):
 
     try:
@@ -36,6 +39,7 @@ def get_tables(engine: Engine, window: sg.Window, db: str):
             "Error connecting to the database! Please check credentials or authenticate")
 
 
+# This gets called when user needs to authenticate through GUI
 def open_auth() -> Optional[Tuple[Union[Literal["username"], Literal["Password"]], str]]:
     layout = [
         [sg.Text("Username:"), sg.InputText(key="username")],
@@ -76,6 +80,7 @@ def main():
 
     sg.theme(theme)
 
+    # App Layout
     layout = [
         [sg.Text("Current theme:"), sg.Text(
             theme, text_color=sg.OLD_TABLE_TREE_SELECTED_ROW_COLORS[1]), sg.Text("User:"), sg.Text(user, key="username", text_color=sg.OLD_TABLE_TREE_SELECTED_ROW_COLORS[1])],
@@ -116,9 +121,11 @@ def main():
     while True:
         event, values = window.read()
 
+        # Closing the event loop
         if event in exit_events:
             break
 
+        # Login is used only when no credentials are provided through environment
         if event == "login":
             auth_result = open_auth()
             user = auth_result["username"]
@@ -133,6 +140,7 @@ def main():
             values["tables"]) > 0 else ""
         selected_columns = values["columns"]
 
+        # Event handling when table selection change
         if event == "tables" and engine is not None:
             with engine.begin() as conn:
                 table_columns_query = "SELECT COLUMN_NAME FROM information_schema.columns WHERE TABLE_NAME = '" + \
@@ -152,12 +160,14 @@ def main():
                 window.Element("textbox").update("SELECT %s FROM %s" %
                                                  (columns, selected_table))
 
+        # Event handling when column selection change
         if event == "columns":
             columns = ",".join(selected_columns) if len(
                 selected_columns) > 0 else "*"
             window.Element("textbox").update("SELECT %s FROM %s" %
                                              (columns, selected_table))
 
+        # Event handling when percent selection change
         if event == "count":
             percent = values["count"]
             columns = ",".join(selected_columns) if len(
@@ -165,6 +175,7 @@ def main():
             window.Element("textbox").update("SELECT %s FROM %s LIMIT %s" %
                                              (columns, selected_table, str(round(row_count * (percent / 100)))))
 
+        # Event handling when submitting
         if event == "submit":
 
             query: str = values["textbox"]

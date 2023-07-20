@@ -1,5 +1,6 @@
 *.spec
 *.env
+!.env.example
 
 build/
 dist/
