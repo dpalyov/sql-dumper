@@ -1,15 +1,18 @@
 ## Start app
-``sudo chmod +x ./start.sh
-  ./start.sh``
+```
+sudo chmod +x ./start.sh && ./start.sh
+```
 
-***Note that app is starting with the example db as default db***
+**Note that app is starting with the example db as default db.
+You can setup your own database and configure it by providing a valid connection string (``DB_CONNECTION_STRING``) with the ``dialect`` and/or ``driver`` as listed below.
+You are also provided a default out dir that you may configure with the ``OUT_DIR`` variable**
 ## Supported dialects and drivers: 
-	- "mysql+pymsql": "mysql+pymsql://user:pass@host/schema"
-	- "sqlite": "sqlite:///file.db"
-	- "postgres" (Not tested!)
-		- "postgresql://scott:tiger@localhost/mydatabase"
-		- "postgresql+psycopg2://scott:tiger@localhost/mydatabase"
-		- "postgresql+pg8000://scott:tiger@localhost/mydatabase"
+- "mysql+pymsql": "mysql+pymsql://user:pass@host/schema"
+- "sqlite": "sqlite:///file.db"
+- "postgres" (Not tested!)
+	- "postgresql://scott:tiger@localhost/mydatabase"
+	- "postgresql+psycopg2://scott:tiger@localhost/mydatabase"
+	- "postgresql+pg8000://scott:tiger@localhost/mydatabase"
 
 ## Supported themes: ##
 
