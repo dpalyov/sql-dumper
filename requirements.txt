@@ -2,12 +2,15 @@ et-xmlfile==1.1.0
 greenlet==2.0.2
 mysql-connector-python==8.1.0
 numpy==1.24.4
+openpyxl==3.1.2
 pandas==2.0.3
 protobuf==4.21.12
+PyMySQL==1.1.0
 PySimpleGUI==4.60.5
 python-dateutil==2.8.2
 python-dotenv==1.0.0
 pytz==2023.3
+regex==2023.6.3
 six==1.16.0
 SQLAlchemy==2.0.19
 typing-extensions==4.7.1
