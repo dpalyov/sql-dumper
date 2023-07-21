@@ -3,7 +3,6 @@
 !.env.example
 
 build/
-dist/
 venv/
 
 .vscode/
