@@ -1,3 +1,16 @@
+## Start app
+``sudo chmod +x ./start.sh
+  ./start.sh``
+
+***Note that app is starting with the example db as default db***
+## Supported dialects and drivers: 
+	- "mysql+pymsql": "mysql+pymsql://user:pass@host/schema"
+	- "sqlite": "sqlite:///file.db"
+	- "postgres" (Not tested!)
+		- "postgresql://scott:tiger@localhost/mydatabase"
+		- "postgresql+psycopg2://scott:tiger@localhost/mydatabase"
+		- "postgresql+pg8000://scott:tiger@localhost/mydatabase"
+
 ## Supported themes: ##
 
 - Black
